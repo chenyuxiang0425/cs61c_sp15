@@ -37,17 +37,17 @@
  * - None if successful
  */
 
-int beargit_init(void) {
+int beargit_init(void)
+{
   fs_mkdir(".beargit");
 
-  FILE* findex = fopen(".beargit/.index", "w");
+  FILE *findex = fopen(".beargit/.index", "w");
   fclose(findex);
-  
+
   write_string_to_file(".beargit/.prev", "0000000000000000000000000000000000000000");
 
   return 0;
 }
-
 
 /* beargit add <filename>
  * 
@@ -60,14 +60,17 @@ int beargit_init(void) {
  * - None if successful
  */
 
-int beargit_add(const char* filename) {
-  FILE* findex = fopen(".beargit/.index", "r");
+int beargit_add(const char *filename)
+{
+  FILE *findex = fopen(".beargit/.index", "r");
   FILE *fnewindex = fopen(".beargit/.newindex", "w");
 
   char line[FILENAME_SIZE];
-  while(fgets(line, sizeof(line), findex)) {
+  while (fgets(line, sizeof(line), findex))
+  {
     strtok(line, "\n");
-    if (strcmp(line, filename) == 0) {
+    if (strcmp(line, filename) == 0)
+    {
       fprintf(stderr, "ERROR: File %s already added\n", filename);
       fclose(findex);
       fclose(fnewindex);
@@ -87,6 +90,40 @@ int beargit_add(const char* filename) {
   return 0;
 }
 
+/* beargit status
+ *
+ * See "Step 1" in the homework 1 spec.
+ *
+ */
+
+int beargit_status()
+{
+  /*     read a string of at most <size> (incl. NULL character) 
+       from file <filename> and store it into <str>. 
+       Note that <str>needs to be large enough to hold that string.
+ */
+
+  //FILENAME_SIZE
+  FILE *currIndex = fopen(".beargit/.index", "r");
+  char line[FILENAME_SIZE];
+  int count = 0;
+  fprintf(stdout, "%s\n\n", "Tracked files:");
+  /*
+  fgets函数功能为从指定的流中读取数据，每次读取一行。
+  其原型为：char *fgets(char *str, int n, FILE *stream);
+  从指定的流 stream 读取一行，并把它存储在 str 所指向的字符串内。
+  当读取 (n-1) 个字符时，或者读取到换行符时，或者到达文件末尾时，它会停止
+  */
+  while (fgets(line, FILENAME_SIZE, currIndex))
+  {
+
+    count += 1;
+    fprintf(stdout, "  %s", line);
+  }
+  fprintf(stdout, "\n%d files total\n", count);
+  fclose(currIndex);
+  return 0;
+}
 
 /* beargit rm <filename>
  * 
@@ -94,8 +131,36 @@ int beargit_add(const char* filename) {
  *
  */
 
-int beargit_rm(const char* filename) {
-  /* COMPLETE THE REST */
+int beargit_rm(const char *filename)
+{
+  FILE *findex = fopen(".beargit/.index", "r");
+  FILE *fnewindex = fopen(".beargit/.newindex", "w");
+
+  int isFound = 0;
+  char line[FILENAME_SIZE];
+
+  while (fgets(line, sizeof(line), findex))
+  {
+    strtok(line, "\n");
+    if (strcmp(line, filename) == 0)
+    {
+      isFound = 1;
+      continue;
+    }
+    fprintf(fnewindex, "%s\n", line);
+  }
+  if (isFound == 0)
+  {
+    fprintf(stderr, "ERROR: File %s not tracked\n", filename);
+    fclose(findex);
+    fclose(fnewindex);
+    fs_rm(".beargit/.newindex");
+    return 3;
+  }
+
+  fclose(findex);
+  fclose(fnewindex);
+  fs_mv(".beargit/.newindex", ".beargit/.index");
 
   return 0;
 }
@@ -106,19 +171,68 @@ int beargit_rm(const char* filename) {
  *
  */
 
-const char* go_bears = "GO BEARS!";
+const char *go_bears = "GO BEARS!";
 
-int is_commit_msg_ok(const char* msg) {
-  /* COMPLETE THE REST */
-  return 0;
+int is_commit_msg_ok(const char *msg)
+{
+  if (strstr(msg, go_bears))
+  {
+    return 0;
+  }
+  else
+  {
+    return 1;
+  }
 }
 
-void next_commit_id(char* commit_id) {
-  /* COMPLETE THE REST */
+//helper function to cancat string
+char *concat(const char *s1, const char *s2)
+{
+  char *result = malloc(strlen(s1) + strlen(s2) + 1); //+1 for the zero-terminator
+  //in real code you would check for errors in malloc here
+  strcpy(result, s1);
+  strcat(result, s2);
+  return result;
 }
 
-int beargit_commit(const char* msg) {
-  if (!is_commit_msg_ok(msg)) {
+void next_commit_id(char *commit_id)
+{
+  char *p = commit_id;
+  int flag = 0;
+  while (*p != '\0')
+  {
+    switch (*p)
+    {
+    case '6':
+      *p = '1';
+      flag = 0;
+      break;
+    case '1':
+      *p = 'c';
+      flag = 0;
+      break;
+    case 'c':
+      *p = '6';
+      p++;
+      flag = 1;
+      break;
+    default:
+      *p = '6';
+      p++;
+      flag = 1;
+      break;
+      if (flag = 0)
+      {
+        break;
+      }
+    }
+  }
+}
+
+int beargit_commit(const char *msg)
+{
+  if (!is_commit_msg_ok(msg))
+  {
     fprintf(stderr, "ERROR: Message must contain \"%s\"\n", go_bears);
     return 1;
   }
@@ -126,21 +240,45 @@ int beargit_commit(const char* msg) {
   char commit_id[COMMIT_ID_SIZE];
   read_string_from_file(".beargit/.prev", commit_id, COMMIT_ID_SIZE);
   next_commit_id(commit_id);
-
   /* COMPLETE THE REST */
 
-  return 0;
-}
+  char *newDir = (char *)malloc(sizeof(".beargit/") + sizeof(commit_id) + 1);
+  sprintf(newDir, ".beargit/%s", commit_id);
+  fs_mkdir(newDir);
 
-/* beargit status
- *
- * See "Step 1" in the homework 1 spec.
- *
- */
+  char *newIndex = (char *)malloc(sizeof(newDir) + sizeof("/.index") + 1);
+  sprintf(newIndex, "%s/.index", newDir);
+  fs_cp(".beargit/.index", newIndex);
+  //free(newIndex);
 
-int beargit_status() {
-  /* COMPLETE THE REST */
+  char *newPrev = (char *)malloc(sizeof(newDir) + sizeof("/.prev") + 1);
+  sprintf(newPrev, "%s/.prev", newDir);
+  fs_cp(".beargit/.prev", newPrev);
+  //free(newPrev);
 
+  // copy all tracked files to .beagit/<newid>
+  FILE *findex = fopen(".beargit/.index", "r");
+  char line[FILENAME_SIZE];
+
+  while (fgets(line, FILENAME_SIZE, findex))
+  {
+    strtok(line, "\n");
+    char *newFile = (char *)malloc(sizeof(newDir) + sizeof("/") + strlen(line) + 1);
+    sprintf(newFile, "%s/%s", newDir, line);
+    fs_cp(line, newFile);
+    //free(newFile);
+  }
+
+  char *newMsgDir = (char *)malloc(sizeof(newDir) + sizeof("/.msg") + 1);
+  sprintf(newMsgDir, "%s/.msg", newDir);
+  write_string_to_file(newMsgDir, msg);
+
+  fclose(findex);
+
+  write_string_to_file(".beargit/.prev", commit_id);
+
+  free(newMsgDir);
+  free(newDir);
   return 0;
 }
 
@@ -150,7 +288,8 @@ int beargit_status() {
  *
  */
 
-int beargit_log() {
+int beargit_log()
+{
   /* COMPLETE THE REST */
 
   return 0;
