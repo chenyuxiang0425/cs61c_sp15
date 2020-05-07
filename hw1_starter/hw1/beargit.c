@@ -177,54 +177,38 @@ int is_commit_msg_ok(const char *msg)
 {
   if (strstr(msg, go_bears))
   {
-    return 0;
+    return 1;
   }
   else
   {
-    return 1;
+    return 0;
   }
-}
-
-//helper function to cancat string
-char *concat(const char *s1, const char *s2)
-{
-  char *result = malloc(strlen(s1) + strlen(s2) + 1); //+1 for the zero-terminator
-  //in real code you would check for errors in malloc here
-  strcpy(result, s1);
-  strcat(result, s2);
-  return result;
 }
 
 void next_commit_id(char *commit_id)
 {
   char *p = commit_id;
-  int flag = 0;
   while (*p != '\0')
   {
-    switch (*p)
+    if (*p == '6')
     {
-    case '6':
       *p = '1';
-      flag = 0;
       break;
-    case '1':
+    }
+    else if (*p == '1')
+    {
       *p = 'c';
-      flag = 0;
       break;
-    case 'c':
+    }
+    else if (*p == 'c')
+    {
       *p = '6';
       p++;
-      flag = 1;
-      break;
-    default:
+    }
+    else
+    {
       *p = '6';
       p++;
-      flag = 1;
-      break;
-      if (flag = 0)
-      {
-        break;
-      }
     }
   }
 }
@@ -240,21 +224,22 @@ int beargit_commit(const char *msg)
   char commit_id[COMMIT_ID_SIZE];
   read_string_from_file(".beargit/.prev", commit_id, COMMIT_ID_SIZE);
   next_commit_id(commit_id);
-  /* COMPLETE THE REST */
 
-  char *newDir = (char *)malloc(sizeof(".beargit/") + sizeof(commit_id) + 1);
+  int newDirSize = sizeof(".beargit/") + sizeof(commit_id) + 1;
+  char *newDir = (char *)malloc(newDirSize);
   sprintf(newDir, ".beargit/%s", commit_id);
   fs_mkdir(newDir);
 
-  char *newIndex = (char *)malloc(sizeof(newDir) + sizeof("/.index") + 1);
+  char *newIndex = (char *)malloc(newDirSize + sizeof("/.index") + 1);
   sprintf(newIndex, "%s/.index", newDir);
   fs_cp(".beargit/.index", newIndex);
-  //free(newIndex);
+  free(newIndex);
 
-  char *newPrev = (char *)malloc(sizeof(newDir) + sizeof("/.prev") + 1);
+  char *newPrev = (char *)malloc(newDirSize + sizeof("/.prev") + 1);
+
   sprintf(newPrev, "%s/.prev", newDir);
   fs_cp(".beargit/.prev", newPrev);
-  //free(newPrev);
+  free(newPrev);
 
   // copy all tracked files to .beagit/<newid>
   FILE *findex = fopen(".beargit/.index", "r");
@@ -263,21 +248,18 @@ int beargit_commit(const char *msg)
   while (fgets(line, FILENAME_SIZE, findex))
   {
     strtok(line, "\n");
-    char *newFile = (char *)malloc(sizeof(newDir) + sizeof("/") + strlen(line) + 1);
+    char *newFile = (char *)malloc(newDirSize + sizeof("/") + strlen(line) + 1);
     sprintf(newFile, "%s/%s", newDir, line);
     fs_cp(line, newFile);
-    //free(newFile);
+    free(newFile);
   }
-
-  char *newMsgDir = (char *)malloc(sizeof(newDir) + sizeof("/.msg") + 1);
-  sprintf(newMsgDir, "%s/.msg", newDir);
-  write_string_to_file(newMsgDir, msg);
-
-  fclose(findex);
-
   write_string_to_file(".beargit/.prev", commit_id);
 
+  char *newMsgDir = (char *)malloc(newDirSize + strlen("/.msg") + 1);
+  sprintf(newMsgDir, "%s/.msg", newDir);
+  write_string_to_file(newMsgDir, msg);
   free(newMsgDir);
+  fclose(findex);
   free(newDir);
   return 0;
 }
@@ -290,7 +272,37 @@ int beargit_commit(const char *msg)
 
 int beargit_log()
 {
-  /* COMPLETE THE REST */
+  FILE *fprev = fopen(".beargit/.prev", "r");
+  char prev[FILENAME_SIZE];
+  fgets(prev, FILENAME_SIZE, fprev);
+  char prevBegin[] = "0000000000000000000000000000000000000000";
+  if (strcmp(prev, prevBegin) == 0)
+  {
+    fprintf(stderr, "ERROR: There are no commits!\n");
+    fclose(fprev);
+    return 1;
+  }
 
+  while (strcmp(prev, prevBegin) != 0)
+  {
+    strtok(prev, "\n");
+    fprintf(stdout, "\ncommit %s\n", prev);
+
+    int newDirSize = sizeof(".beargit/") + sizeof(prev) + 1;
+    char *newMsgDir = (char *)malloc(newDirSize + strlen("/.msg") + 1);
+    sprintf(newMsgDir, ".beargit/%s/.msg", prev);
+    char msg[COMMIT_ID_SIZE];
+    read_string_from_file(newMsgDir, msg, COMMIT_ID_SIZE);
+    fprintf(stdout, "    %s\n", msg);
+    free(newMsgDir);
+
+    char *newPrevDir = (char *)malloc(newDirSize + strlen("/.msg") + 1);
+    sprintf(newPrevDir, ".beargit/%s/.prev", prev);
+    read_string_from_file(newPrevDir, prev, COMMIT_ID_SIZE);
+    free(newPrevDir);
+  }
+  fprintf(stdout, "\n");
+
+  fclose(fprev);
   return 0;
 }
